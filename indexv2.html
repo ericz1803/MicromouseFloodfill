@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Flood Fill
+    </title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+  </head>
+  <body>
+    <div class="flex-container">
+      
+      <div class="mazes" id="weights">
+        <!--cell size * 16-->
+        <h1>Flood Fill Weights</h1>
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="mazes" id="visited">
+          <!--cell size * 16-->
+          <h1>Visited <button onclick="mouse.moveForward()">Forward</button> <button onclick="mouse.turnLeft()">Left</button> <button onclick="mouse.turnRight()">Right</button> <button onclick="updateCanvas()">Update</button> <button onclick="Step()">Step</button> <button onclick="Run()">Run</button></h1>
+          
+          <canvas id="canvas1"></canvas>
+        </div>
+    </div>
+
+    <script src='indexv2.js'></script>
+  </body>
+</html>
