@@ -1,7 +1,7 @@
-//set up arrays
+//cell size (px)
+var cell_size = 40;
 
-//first 2 are all 256x1 arrays not 16x16
-let japan2007 = [
+let maze = [
     0x0E, 0x0A, 0x09, 0x0C, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x0A, 0x08, 0x0A, 0x0A, 0x0A, 0x08, 0x09,
     0x0C, 0x09, 0x05, 0x06, 0x08, 0x0A, 0x0A, 0x0A, 0x0A, 0x0B, 0x06, 0x0A, 0x0A, 0x0A, 0x03, 0x05,
     0x05, 0x05, 0x05, 0x0C, 0x02, 0x0B, 0x0E, 0x08, 0x0A, 0x0A, 0x08, 0x0A, 0x08, 0x08, 0x09, 0x05,
@@ -39,8 +39,20 @@ let see = [
     0x06, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x03
 ];
 
-function Comparator(a, b) {
-    return a[2] < b[2] ? 1 : -1;
+//16x16 bool array for visited
+let visited = Array(16).fill().map(() => Array(16).fill(false));
+visited[0][0] = true;
+
+//16x16 array for weights
+let array = Array(16).fill().map(() => Array(16).fill(0));
+
+let stack = [];
+
+//init floodfill array
+for (let i=0; i<16; i++) {
+    for (let j=0; j<16; j++) {
+        array[i][j] = Math.round(Math.abs(i-7.5) + Math.abs(j-7.5) - 1);
+    }
 }
 
 String.prototype.lpad = function(padString, length) {
@@ -50,41 +62,67 @@ String.prototype.lpad = function(padString, length) {
     return str;
 }
 
-//16x16 bool array for visited
-let visited = Array(16).fill().map(() => Array(16).fill(false));
-
-//16x16 array for weights
-let array = Array(16).fill().map(() => Array(16).fill(0));
-
-//for weight updating
-let updated = Array(16).fill().map(() => Array(16).fill(false));
-updated[7][7] = true;
-updated[7][8] = true;
-updated[8][7] = true;
-updated[8][8] = true;
-
-//init floodfill array
-for (let i=0; i<16; i++) {
-    for (let j=0; j<16; j++) {
-        array[i][j] = Math.round(Math.abs(i-7.5) + Math.abs(j-7.5) - 1);
+let mouse = {
+    pos: [0, 0],
+    //direction 0=up, 1=right, 2=down, 3=left
+    dir: 2,
+    stepsTaken: 0,
+    moveTo: function(x, y) {
+        this.pos = [x, y];
+    },
+    moveForward: function() {
+        switch (this.dir) {
+            case 0:
+                this.pos[1]--;
+                break;
+            case 1:
+                this.pos[0]++;
+                break;
+            case 2:
+                this.pos[1]++;
+                break;
+            case 3:
+                this.pos[0]--;
+                break;
+        }
+        this.stepsTaken++;
+    },
+    turnRight: function() {
+        this.dir = (this.dir + 1) % 4;
+    },
+    turnLeft: function() {
+        //+3 instead of -1 to avoid negative number for modulo
+        this.dir = (this.dir + 3) % 4;
+    },
+    draw: function(ctx) {
+        let x = this.pos[0] * cell_size + cell_size/2;
+        let y = this.pos[1] * cell_size + cell_size/2;
+        ctx.beginPath();
+        ctx.arc(x, y, cell_size * 0.35, 0, 2 * Math.PI);
+        ctx.closePath();
+        switch (this.dir) {
+            case 0:
+                ctx.moveTo(x, y - cell_size * 0.1);
+                ctx.lineTo(x, y - cell_size * 0.45);
+                break;
+            case 1:
+                ctx.moveTo(x + cell_size * 0.1, y);
+                ctx.lineTo(x + cell_size * 0.45, y);
+                break;
+            case 2:
+                ctx.moveTo(x, y + cell_size * 0.1);
+                ctx.lineTo(x, y + cell_size * 0.45);
+                break;
+            case 3:
+                ctx.moveTo(x - cell_size * 0.1, y);
+                ctx.lineTo(x - cell_size * 0.45, y);
+                break;
+        }
+        ctx.stroke();
     }
-}
-
-let current_position = [0, 0];
-let goal = [7.5, 7.5];
-
-let stack = [[0, 0]];
-
-let steps = 0;
-
-
-document.onload = updateCanvas();
+};
 
 function updateCanvas() {
-    //cell size (px)
-    let cell_size = 40;
-
-
     //first canvas
     let c = document.getElementById("canvas");
     let ctx = c.getContext('2d');
@@ -93,15 +131,14 @@ function updateCanvas() {
     ctx.font = `${cell_size/2}px Arial`;
     
     //current position
-    ctx.fillStyle = "green";
-    ctx.fillRect(cell_size*current_position[0], cell_size*current_position[1], cell_size, cell_size);
+    mouse.draw(ctx);
     
     //maze walls and weights
     ctx.fillStyle = "black";
     for (let i=0; i<16; i++) {
         for (let j=0; j<16; j++) {
             //binary representation
-            let bin = japan2007[16*i+j].toString(2);
+            let bin = maze[16*i+j].toString(2);
             bin = bin.lpad('0', 4);
             //North
             if (bin.charAt(bin.length - 3) == "1") {
@@ -127,7 +164,6 @@ function updateCanvas() {
                 ctx.lineTo((i)*cell_size, (j+1)*cell_size);
                 ctx.stroke();
             }
-            ctx.fillText(array[i][j], cell_size*i + cell_size/4, cell_size*j + cell_size*3/4);
         }
     }
 
@@ -175,127 +211,139 @@ function updateCanvas() {
             } else {
                 ctx.fillStyle = "Orange";
             }
-
             ctx.fillRect(cell_size*i + 1, cell_size*j + 1, cell_size - 2, cell_size - 2);
-
-
-
+            ctx.fillStyle = "Black";
+            ctx.fillText(array[i][j], cell_size*i + cell_size/4, cell_size*j + cell_size*3/4);
+           
         }
     }
 }
 
-//pos is [x, y]
-function update_weights(pos) {
-    let temp_stack = [[pos[0], pos[1], 0]];
-    while (temp_stack.length > 0) {
-        let cur = temp_stack.shift();
-        let x = cur[0];
-        let y = cur[1];
-        let val = cur[2];
-        if (updated[x][y] && val > array[x][y]) {
-            val = array[x][y];
-        }
-        else {
-            array[x][y] = val;
-        }
-        updated[x][y] = true;
-        //check surrounding cells
-        let bin = see[16*x+y].toString(2).lpad('0', 4);
-        //North
-        if (bin.charAt(bin.length - 3) == "0") {
-            if (visited[x][y-1]) {
-                visited[x][y-1] = false;
-                temp_stack.push([x, y-1, val+1]);
-            }
-        }
-        //East
-        if (bin.charAt(bin.length - 2) == "0") {
-            if (visited[x+1][y]) {
-                visited[x+1][y] = false;
-                temp_stack.push([x+1, y, val+1]);
-            }
-        }
-        //South
-        if (bin.charAt(bin.length - 1) == "0") {
-            if (visited[x][y+1]) {
-                visited[x][y+1] = false;
-                temp_stack.push([x, y+1, val+1]);
-            }
-        }
-        //West
-        if (bin.charAt(bin.length - 4) == "0") {
-            if (visited[x-1][y]) {
-                visited[x-1][y] = false;
-                temp_stack.push([x-1, y, val+1]);
-            }
-        }
-        updateCanvas();
-    }
-}
 
 function Step() {
-    if (stack.length > 0) {
-        let temp = stack.pop();
-        steps++;
-        let x = temp[0];
-        let y = temp[1];
-        visited[x][y] = true;
-        if (array[x][y] == 0) {
-            console.log("VICTORY");
-            update_weights([x,y]);
-            stack = [[0,0]];
-            array[x][y] = 0;
-            visited = Array(16).fill().map(() => Array(16).fill(false));
-            alert(`Steps:${steps}`);
-            steps = 0;
-            return true;
-        }
-
-        //x, y, weight
-        let to_visit = [];
-
-        //update what is seen
-        see[16*current_position[0]+current_position[1]] = japan2007[16*current_position[0]+current_position[1]];
-        //check surrounding cells
-        let bin = see[16*x+y].toString(2).lpad('0', 4);
+    while (stack.length > 0) {
+        let cell = stack.pop();
+        let val = array[cell[0]][cell[1]];
+        let bin = see[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
+        let min_val = 256;
         //North
         if (bin.charAt(bin.length - 3) == "0") {
-            if (!visited[x][y-1]) {
-                to_visit.push([x, y-1, array[x][y-1]]);
+            if (array[cell[0]][cell[1] - 1] < min_val) {
+                min_val = array[cell[0]][cell[1] - 1];
             }
         }
         //East
         if (bin.charAt(bin.length - 2) == "0") {
-            if (!visited[x+1][y]) {
-                to_visit.push([x+1, y, array[x+1][y]]);
+            if (array[cell[0] + 1][cell[1]] < min_val) {
+                min_val = array[cell[0] + 1][cell[1]];
             }
         }
         //South
         if (bin.charAt(bin.length - 1) == "0") {
-            if (!visited[x][y+1]) {
-                to_visit.push([x, y+1, array[x][y+1]]);
+            if (array[cell[0]][cell[1] + 1] < min_val) {
+                min_val = array[cell[0]][cell[1] + 1];
             }
         }
         //West
         if (bin.charAt(bin.length - 4) == "0") {
-            if (!visited[x-1][y]) {
-                to_visit.push([x-1, y, array[x-1][y]]);
+            if (array[cell[0] - 1][cell[1]] < min_val) {
+                min_val = array[cell[0] - 1][cell[1]];
             }
         }
-        to_visit.sort(Comparator);
-        for (let elem of to_visit) {
-            stack.push([elem[0], elem[1]]);
-        }
-        if (to_visit.length != 0) {
-            current_position = temp;
-        }
+        if (val != min_val + 1) {
+            array[cell[0]][cell[1]] = min_val + 1;
 
-    } else {
-        console.log("EMPTY STACK");
+            //push to stack
+            //north
+            if (bin.charAt(bin.length - 3) == "0") {
+                stack.push([cell[0], cell[1] - 1]);
+            }
+            //East
+            if (bin.charAt(bin.length - 2) == "0") {
+                stack.push([cell[0] + 1, cell[1]]);
+            }
+            //South
+            if (bin.charAt(bin.length - 1) == "0") {
+                stack.push([cell[0], cell[1] + 1]);
+            }
+            //West
+            if (bin.charAt(bin.length - 4) == "0") {
+                stack.push([cell[0] - 1, cell[1]]);
+            }
+        }
     }
-    updateCanvas();
 }
 
-function Run() {
-    while (!Step()) {}
+
+function Move() {
+    let cell = mouse.pos;
+    stack.push([cell[0], cell[1]]);
+    Step();
+    let bin = see[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
+    let min_val = 256;
+    let min_direction = -1;
+    let go_straight = false;
+    //North
+    if (bin.charAt(bin.length - 3) == "0") {
+        if (array[cell[0]][cell[1] - 1] < min_val) {
+            min_val = array[cell[0]][cell[1] - 1];
+            min_direction = 0;
+        }
+    }
+    //East
+    if (bin.charAt(bin.length - 2) == "0") {
+        if (array[cell[0] + 1][cell[1]] < min_val) {
+            min_val = array[cell[0] + 1][cell[1]];
+            min_direction = 1;
+            go_straight = false;
+        } else if (array[cell[0] + 1][cell[1]] == min_val && mouse.dir == 1) {
+            go_straight = true;
+        } 
+    }
+    //South
+    if (bin.charAt(bin.length - 1) == "0") {
+        if (array[cell[0]][cell[1] + 1] < min_val) {
+            min_val = array[cell[0]][cell[1] + 1];
+            min_direction = 2;
+            go_straight = false;
+        } else if (array[cell[0]][cell[1] + 1] == min_val && mouse.dir == 2) {
+            go_straight = true;
+        } 
+    }
+    //West
+    if (bin.charAt(bin.length - 4) == "0") {
+        if (array[cell[0] - 1][cell[1]] < min_val) {
+            min_val = array[cell[0] - 1][cell[1]];
+            min_direction = 3;
+            go_straight = false;
+        } else if (array[cell[0] - 1][cell[1]] == min_val && mouse.dir == 3) {
+            go_straight = true;
+        } 
+    }
+
+    if (min_direction == mouse.dir || go_straight) {
+        mouse.moveForward();
+    } else {
+        while (min_direction != mouse.dir) {
+            mouse.turnRight();
+        }
+        mouse.moveForward();
+    }
+
+    //new mouse position
+    cell = mouse.pos;
+    visited[cell[0]][cell[1]] = true;
+    see[cell[0]*16+cell[1]] = maze[cell[0]*16+cell[1]];
+    updateCanvas();
+    if (array[cell[0]][cell[1]] == 0) {
+        mouse.moveTo(0, 0);
+        console.log("Steps taken: " + mouse.stepsTaken);
+        mouse.stepsTaken = 0;
+        visited = Array(16).fill().map(() => Array(16).fill(false));
+        visited[0][0] = true;
+        updateCanvas();
+    }
+
 }
+
+document.onload = updateCanvas();
