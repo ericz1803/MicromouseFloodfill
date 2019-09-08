@@ -41,11 +41,12 @@ let see = [
 
 //16x16 bool array for visited
 let visited = Array(16).fill().map(() => Array(16).fill(false));
+visited[0][0] = true;
 
 //16x16 array for weights
 let array = Array(16).fill().map(() => Array(16).fill(0));
 
-let stack = [[0, 0]];
+let stack = [];
 
 //init floodfill array
 for (let i=0; i<16; i++) {
@@ -84,6 +85,7 @@ let mouse = {
                 this.pos[0]--;
                 break;
         }
+        this.stepsTaken++;
     },
     turnRight: function() {
         this.dir = (this.dir + 1) % 4;
@@ -121,9 +123,6 @@ let mouse = {
 };
 
 function updateCanvas() {
-
-
-
     //first canvas
     let c = document.getElementById("canvas");
     let ctx = c.getContext('2d');
@@ -222,9 +221,8 @@ function updateCanvas() {
 
 
 function Step() {
-    if (stack.length > 0) {
+    while (stack.length > 0) {
         let cell = stack.pop();
-        mouse.moveTo(cell[0], cell[1]);
         let val = array[cell[0]][cell[1]];
         let bin = see[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
         let min_val = 256;
@@ -252,20 +250,100 @@ function Step() {
                 min_val = array[cell[0] - 1][cell[1]];
             }
         }
+        if (val != min_val + 1) {
+            array[cell[0]][cell[1]] = min_val + 1;
 
-        if (val == min_val + 1) {
-            
-        } else {
-
+            //push to stack
+            //north
+            if (bin.charAt(bin.length - 3) == "0") {
+                stack.push([cell[0], cell[1] - 1]);
+            }
+            //East
+            if (bin.charAt(bin.length - 2) == "0") {
+                stack.push([cell[0] + 1, cell[1]]);
+            }
+            //South
+            if (bin.charAt(bin.length - 1) == "0") {
+                stack.push([cell[0], cell[1] + 1]);
+            }
+            //West
+            if (bin.charAt(bin.length - 4) == "0") {
+                stack.push([cell[0] - 1, cell[1]]);
+            }
         }
-
-        updateCanvas();
-    } else {
-        console.log("Done");
     }
-    
 }
 
 
+function Move() {
+    let cell = mouse.pos;
+    stack.push([cell[0], cell[1]]);
+    Step();
+    let bin = see[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
+    let min_val = 256;
+    let min_direction = -1;
+    let go_straight = false;
+    //North
+    if (bin.charAt(bin.length - 3) == "0") {
+        if (array[cell[0]][cell[1] - 1] < min_val) {
+            min_val = array[cell[0]][cell[1] - 1];
+            min_direction = 0;
+        }
+    }
+    //East
+    if (bin.charAt(bin.length - 2) == "0") {
+        if (array[cell[0] + 1][cell[1]] < min_val) {
+            min_val = array[cell[0] + 1][cell[1]];
+            min_direction = 1;
+            go_straight = false;
+        } else if (array[cell[0] + 1][cell[1]] == min_val && mouse.dir == 1) {
+            go_straight = true;
+        } 
+    }
+    //South
+    if (bin.charAt(bin.length - 1) == "0") {
+        if (array[cell[0]][cell[1] + 1] < min_val) {
+            min_val = array[cell[0]][cell[1] + 1];
+            min_direction = 2;
+            go_straight = false;
+        } else if (array[cell[0]][cell[1] + 1] == min_val && mouse.dir == 2) {
+            go_straight = true;
+        } 
+    }
+    //West
+    if (bin.charAt(bin.length - 4) == "0") {
+        if (array[cell[0] - 1][cell[1]] < min_val) {
+            min_val = array[cell[0] - 1][cell[1]];
+            min_direction = 3;
+            go_straight = false;
+        } else if (array[cell[0] - 1][cell[1]] == min_val && mouse.dir == 3) {
+            go_straight = true;
+        } 
+    }
+
+    if (min_direction == mouse.dir || go_straight) {
+        mouse.moveForward();
+    } else {
+        while (min_direction != mouse.dir) {
+            mouse.turnRight();
+        }
+        mouse.moveForward();
+    }
+
+    //new mouse position
+    cell = mouse.pos;
+    visited[cell[0]][cell[1]] = true;
+    see[cell[0]*16+cell[1]] = maze[cell[0]*16+cell[1]];
+    updateCanvas();
+    if (array[cell[0]][cell[1]] == 0) {
+        mouse.moveTo(0, 0);
+        console.log("Steps taken: " + mouse.stepsTaken);
+        mouse.stepsTaken = 0;
+        visited = Array(16).fill().map(() => Array(16).fill(false));
+        visited[0][0] = true;
+        updateCanvas();
+    }
+
+}
 
 document.onload = updateCanvas();
