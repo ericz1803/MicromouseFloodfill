@@ -284,14 +284,14 @@ function Move() {
     let min_direction = -1;
     let go_straight = false;
     //North
-    if (bin.charAt(bin.length - 3) == "0") {
+    if (bin.charAt(1) == "0") {
         if (array[cell[0]][cell[1] - 1] < min_val) {
             min_val = array[cell[0]][cell[1] - 1];
             min_direction = 0;
         }
     }
     //East
-    if (bin.charAt(bin.length - 2) == "0") {
+    if (bin.charAt(2) == "0") {
         if (array[cell[0] + 1][cell[1]] < min_val) {
             min_val = array[cell[0] + 1][cell[1]];
             min_direction = 1;
@@ -301,7 +301,7 @@ function Move() {
         } 
     }
     //South
-    if (bin.charAt(bin.length - 1) == "0") {
+    if (bin.charAt(3) == "0") {
         if (array[cell[0]][cell[1] + 1] < min_val) {
             min_val = array[cell[0]][cell[1] + 1];
             min_direction = 2;
@@ -311,7 +311,7 @@ function Move() {
         } 
     }
     //West
-    if (bin.charAt(bin.length - 4) == "0") {
+    if (bin.charAt(0) == "0") {
         if (array[cell[0] - 1][cell[1]] < min_val) {
             min_val = array[cell[0] - 1][cell[1]];
             min_direction = 3;
@@ -333,7 +333,27 @@ function Move() {
     //new mouse position
     cell = mouse.pos;
     visited[cell[0]][cell[1]] = true;
+    bin = maze[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
+    see_bin = see[16*cell[0]+cell[1]].toString(2).lpad('0', 4);
+    //if wall exists but not seen, add wall on both sides
+    //North
+    if (bin.charAt(1) == "1" && see_bin.charAt(1) == "0") {
+        see[(cell[0])*16+cell[1]-1] = see[(cell[0])*16+cell[1]-1] | 0b0001;
+    }
+    //East
+    if (bin.charAt(2) == "1" && see_bin.charAt(2) == "0") {
+        see[(cell[0]+1)*16+(cell[1])] = see[(cell[0]+1)*16+(cell[1])] | 0b1000;
+    }
+    //South
+    if (bin.charAt(3) == "1" && see_bin.charAt(3) == "0") {
+        see[(cell[0])*16+cell[1]+1] = see[(cell[0])*16+cell[1]+1] | 0b0100;
+    }
+    //West
+    if (bin.charAt(0) == "1" && see_bin.charAt(0) == "0") {
+        see[(cell[0]-1)*16+(cell[1])] = see[(cell[0]-1)*16+(cell[1])] | 0b0010;
+    }
     see[cell[0]*16+cell[1]] = maze[cell[0]*16+cell[1]];
+    Step();
     updateCanvas();
     if (array[cell[0]][cell[1]] == 0) {
         mouse.moveTo(0, 0);
@@ -344,6 +364,16 @@ function Move() {
         updateCanvas();
     }
 
+}
+
+function ZoomIn() {
+    cell_size += 5;
+    updateCanvas();
+}
+
+function ZoomOut() {
+    cell_size -= 5;
+    updateCanvas();
 }
 
 document.onload = updateCanvas();
